@@ -5,7 +5,7 @@
 * Description: Adds Apple & Android Wallet Pass for Tickera Event Plugin for WordPress
 * Author: Roadmap Studios
 * Author URI:  https://roadmapstudios.com
-* Version: 1.2.3
+* Version: 1.2.4
 * License: GNU General Public License v3.0
 * License URI: http://www.gnu.org/licenses/gpl-3.0.html
  */
@@ -16,6 +16,7 @@ use Passbook\Pass\Field;
 use Passbook\Pass\Image;
 use Passbook\Pass\Structure;
 use Passbook\Type\EventTicket;
+use Passbook\PassInterface;
 if ( ! function_exists( 'my_modify_mimes' ) ) {
 	function my_modify_mimes( $mimes ) {
 		$mimes['p12']    = 'application/x-pkcs12';
@@ -125,80 +126,61 @@ if ( ! function_exists( 'appleWallet_get_blog_timezone' ) ) {
 }
 
 if ( ! function_exists( 'appleWalletPass' ) ) {
-	function appleWalletPass( $event_title, $location, $datetime, $ticket_title, $ticket_id, $ticket_code, $first_name, $last_name ) {
-		// $fp           = fopen( dirname( __FILE__ ) . '/sample2222.txt', 'w+' );
+	function appleWalletPass( $event_title, $location, $datetime, $ticket_title, $ticket_id, $ticket_code, $seat_label ) {
 		$current_user = wp_get_current_user();
 
 		$upload_dir = wp_upload_dir();
-		// fwrite( $fp, PHP_EOL . "\n\n upload_dir = " . print_r( $upload_dir, true ) );
 		$user_dirname = $upload_dir['basedir'] . '/' . $ticket_code . '.pkpass';
 		if ( ! file_exists( $user_dirname ) ) {
 			$tc_apple_wallet_settings = get_option( 'tc_apple_wallet_settings' );
-			// fwrite( $fp, PHP_EOL . "\n\n tc_apple_wallet_settings = " . print_r( $tc_apple_wallet_settings, true ) );
 			$data = hex2RGB( $tc_apple_wallet_settings['background_color'] );
-			// fwrite( $fp, PHP_EOL . "\n\n data = " . print_r( $data, true ) );
 			// Create an event ticket
-			// fwrite( $fp, PHP_EOL . "\n\n ticket = " . $ticket_id . ' & ticket_title :' . $ticket_title );
 			$pass = new EventTicket( $ticket_id, $ticket_title );
-			// fwrite( $fp, PHP_EOL . "\n\n Event ticket = " );
 			$pass->setBackgroundColor( 'rgb(' . $data['red'] . ', ' . $data['green'] . ', ' . $data['blue'] . ')' );
-			// fwrite( $fp, PHP_EOL . "\n\n Background = " );
 			$pass->setLogoText( $tc_apple_wallet_settings['logo_text'] );
-			// fwrite( $fp, PHP_EOL . "\n\n logo = " . $tc_apple_wallet_settings['logo_text'] );
-			$dtTime = @date_format( $datetime, 'Y-m-d H:i:s' );
-			// fwrite( $fp, PHP_EOL . "\n\n relevant Date = " . $datetime );
 			$pass->setRelevantDate( new \DateTime( $datetime, appleWallet_get_blog_timezone() ) );
-
-			// fwrite( $fp, PHP_EOL . "\n\n ticket = " . $datetime );
+			$pass->setSerialNumber ( $ticket_code);
+			
 			// Create pass structure
 			$structure = new Structure();
 			// Add primary field
 			$primary = new Field( 'event', $event_title );
 			$primary->setLabel( 'Event' );
 			$structure->addPrimaryField( $primary );
-			// fwrite( $fp, PHP_EOL . "\n\n primary field = " );
 			// Add secondary field
 			$secondary = new Field( 'location', $location );
 			$secondary->setLabel( 'Location' );
 			$structure->addSecondaryField( $secondary );
-			// fwrite( $fp, PHP_EOL . "\n\n secondary field " );
-			$secondary1 = new Field( 'passenger', $first_name . ' ' . $last_name );
-			$secondary1->setLabel( 'Customer' );
-			$structure->addSecondaryField( $secondary1 );
-			// Add auxiliary field
-			$auxiliary = new Field( 'datetime', $datetime );
-			$auxiliary->setLabel( 'Date & Time' );
 
+			// Add auxiliary field
+			$auxiliary = new Field( 'passenger', $seat_label );
+			$auxiliary->setLabel( 'Seat' );
 			$structure->addAuxiliaryField( $auxiliary );
-			// fwrite( $fp, PHP_EOL . "\n\n auxiliary field " );
+			$auxiliary1 = new Field( 'datetime', $datetime );
+			$auxiliary1->setLabel( 'Date & Time' );
+
+			$structure->addAuxiliaryField( $auxiliary1 );
 			// Add icon image
 			$icon = new Image( $tc_apple_wallet_settings['icon_file_abs_path'], 'icon' );
 			$pass->addImage( $icon );
-			// fwrite( $fp, PHP_EOL . "\n\n icon " . print_r( $icon, true ) );
 			// Add logo image
 			$logo = new Image( $tc_apple_wallet_settings['icon_file_abs_path'], 'logo' );
 			$pass->addImage( $logo );
-			// fwrite( $fp, PHP_EOL . "\n\n logo > " . print_r( $logo, true ) );
 			// Set pass structure
 			$pass->setStructure( $structure );
 			// Add barcode
 			$barcode = new Barcode( $tc_apple_wallet_settings['qr_code_type'], $ticket_code );
 			$pass->setBarcode( $barcode );
-			// fwrite( $fp, PHP_EOL . "\n\n barcode " );
+		
 			// Create pass factory instance
 			if ( $tc_apple_wallet_settings['pass_type_identifier'] && $tc_apple_wallet_settings['pass_type_identifier'] != '' && $tc_apple_wallet_settings['team_identifier'] && $tc_apple_wallet_settings['team_identifier'] != '' && $tc_apple_wallet_settings['organisation_name'] && $tc_apple_wallet_settings['organisation_name'] != '' && $tc_apple_wallet_settings['p12_file_abs_path'] && $tc_apple_wallet_settings['p12_file_abs_path'] != '' && $tc_apple_wallet_settings['p12_passwrd'] && $tc_apple_wallet_settings['p12_passwrd'] != '' && $tc_apple_wallet_settings['wwrd_file_abs_path'] && $tc_apple_wallet_settings['wwrd_file_abs_path'] != '' ) {
 
 				$factory = new PassFactory( $tc_apple_wallet_settings['pass_type_identifier'], $tc_apple_wallet_settings['team_identifier'], $tc_apple_wallet_settings['organisation_name'], $tc_apple_wallet_settings['p12_file_abs_path'], $tc_apple_wallet_settings['p12_passwrd'], $tc_apple_wallet_settings['wwrd_file_abs_path'] );
-				// fwrite( $fp, PHP_EOL . "\n\n final " );
 				$factory->setOutputPath( $upload_dir['path'] );
 				$t = time();
 
-				// fwrite( $fp, PHP_EOL . "\n\n pass " . print_r( $pass, true ) );
-				// fwrite( $fp, PHP_EOL . "\n\n ticket_code " . $ticket_code );
 				$fileName = $factory->package( $pass, $ticket_code );
-				// fwrite( $fp, PHP_EOL . "\n\n final =>  " . $fileName->getFilename() );
 				$displayFileName = $upload_dir['url'] . '/' . $fileName->getFilename();
-				// fwrite( $fp, PHP_EOL . "\n\n final > " . $displayFileName );
 				$Android = stripos( $_SERVER['HTTP_USER_AGENT'], 'Android' );
 				if ( $Android ) {
 					echo '<a href="https://walletpass.io?u=' . $displayFileName . '" target="_system"><img src="https://www.walletpasses.io/badges/badge_web_generic_en@2x.png" /></a>';
@@ -208,7 +190,6 @@ if ( ! function_exists( 'appleWalletPass' ) ) {
 			}
 		} else {
 			$displayFileName = $upload_dir['url'] . '/' . $ticket_code . '.pkpass';
-			// fwrite( $fp, PHP_EOL . "\n\n final > " . $displayFileName );
 			$Android = stripos( $_SERVER['HTTP_USER_AGENT'], 'Android' );
 			if ( $Android ) {
 				echo '<a href="https://walletpass.io?u=' . $displayFileName . '" target="_system"><img src="https://www.walletpasses.io/badges/badge_web_generic_en@2x.png" /></a>';
@@ -216,7 +197,6 @@ if ( ! function_exists( 'appleWalletPass' ) ) {
 				echo '<a href="' . $displayFileName . '" target="_blank"><img src="' . plugin_dir_url( __FILE__ ) . 'includes/add-to-apple-wallet.jpg" width="100px" /></a>';
 			}
 		}
-		fclose( $fp );
 	}
 }
 
@@ -234,20 +214,12 @@ if ( ! function_exists( 'tc_get_wallet_pass_for_ticket' ) ) {
 		$event_id     = $events['event_id'][0];
 		$ticket_id    = $events['ticket_type_id'][0];
 		$ticket_code  = $events['ticket_code'][0];
-		$first_name   = $events['first_name'][0];
-		$last_name    = $events['last_name'][0];
+		$seat_label   = $events['seat_label'][0];
 		$event_obj    = new TC_Event( $event_id );
 		$location_obj = get_post_meta( $event_id, '', false );
 		$ticket       = new TC_Ticket( $ticket_id );
 
-		// $fp = fopen( dirname( __FILE__ ) . '/sample.txt', 'w+' );
-		// fwrite( $fp, PHP_EOL . 'field_name = ' . $field_name );
-		// fwrite( $fp, PHP_EOL . 'ticket_code = ' . $ticket_code );
-		// fwrite( $fp, PHP_EOL . 'events = ' . print_r( $events, true ) );
-		// fwrite( $fp, PHP_EOL . 'tickets_id = ' . $tickets_id );
-		// fclose( $fp );
-		$wallet_pass = appleWalletPass( $event_obj->details->post_title, $location_obj['event_location'][0], $location_obj['event_date_time'][0], $ticket->details->post_title, $ticket_id, $ticket_code, $first_name, $last_name );
-		// echo $wallet_pass;
+		$wallet_pass = appleWalletPass( $event_obj->details->post_title, $location_obj['event_location'][0], $location_obj['event_date_time'][0], $ticket->details->post_title, $ticket_id, $ticket_code, $seat_label );
 	}
 }
 
