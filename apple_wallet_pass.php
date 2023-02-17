@@ -208,19 +208,45 @@ if ( ! function_exists( 'appleWalletPass' ) ) {
  * @param type $ticket_id
  */
 if ( ! function_exists( 'tc_get_wallet_pass_for_ticket' ) ) {
-	function tc_get_wallet_pass_for_ticket( $field_name, $post_field_type, $tickets_id ) {
-		// examples:
-		$events       = get_post_meta( $tickets_id, '', false ); // get a ticket event id so you can obtain an event information like location, date & time, even title etc
-		$event_id     = $events['event_id'][0];
-		$ticket_id    = $events['ticket_type_id'][0];
-		$ticket_code  = $events['ticket_code'][0];
-		$seat_label   = $events['seat_label'][0];
-		$event_obj    = new TC_Event( $event_id );
-		$location_obj = get_post_meta( $event_id, '', false );
-		$ticket       = new TC_Ticket( $ticket_id );
+    function tc_get_wallet_pass_for_ticket( $field_name, $post_field_type, $tickets_id ) {
+        // examples:
+        $events       = get_post_meta( $tickets_id, '', false ); // get a ticket event id so you can obtain an event information like location, date & time, even title etc
+        
+        // check if the required fields exist before using them
+        if ( isset( $events['event_id'][0] ) ) {
+            $event_id = $events['event_id'][0];
+        }
+        else {
+            $event_id = '';
+        }
+        
+        if ( isset( $events['ticket_type_id'][0] ) ) {
+            $ticket_id = $events['ticket_type_id'][0];
+        }
+        else {
+            $ticket_id = '';
+        }
+        
+        if ( isset( $events['ticket_code'][0] ) ) {
+            $ticket_code = $events['ticket_code'][0];
+        }
+        else {
+            $ticket_code = '';
+        }
+        
+        if ( isset( $events['seat_label'][0] ) ) {
+            $seat_label = $events['seat_label'][0];
+        }
+        else {
+            $seat_label = '';
+        }
+        
+        $event_obj    = new TC_Event( $event_id );
+        $location_obj = get_post_meta( $event_id, '', false );
+        $ticket       = new TC_Ticket( $ticket_id );
 
-		$wallet_pass = appleWalletPass( $event_obj->details->post_title, $location_obj['event_location'][0], $location_obj['event_date_time'][0], $ticket->details->post_title, $ticket_id, $ticket_code, $seat_label );
-	}
+        $wallet_pass = appleWalletPass( $event_obj->details->post_title, $location_obj['event_location'][0], $location_obj['event_date_time'][0], $ticket->details->post_title, $ticket_id, $ticket_code, $seat_label );
+    }
 }
 
 add_filter( 'tc_settings_new_menus', 'tc_settings_new_menus' );
